@@ -1765,6 +1765,15 @@ void WebContents::OnGetDefaultPrinter(
 
   base::string16 printer_name =
       device_name.empty() ? default_printer : device_name;
+
+  // We set the default to the system's default printer and only update
+  // if at the Chromium level if the user overrides.
+  // If there are no valid printers available on the network, we bail.
+  if (printer_name.empty() || !IsDeviceNameValid(printer_name)) {
+    std::move(print_callback).Run(false, "no valid printers available");
+    return;
+  }
+
   print_settings.SetStringKey(printing::kSettingDeviceName, printer_name);
 
   auto* print_view_manager =
@@ -1845,15 +1854,8 @@ void WebContents::Print(gin_helper::Arguments* args) {
   options.Get("landscape", &landscape);
   settings.SetBoolKey(printing::kSettingLandscape, landscape);
 
-  // We set the default to the system's default printer and only update
-  // if at the Chromium level if the user overrides.
-  // Printer device name as opened by the OS.
   base::string16 device_name;
   options.Get("deviceName", &device_name);
-  if (!device_name.empty() && !IsDeviceNameValid(device_name)) {
-    args->ThrowError("webContents.print(): Invalid deviceName provided.");
-    return;
-  }
 
   int scale_factor = 100;
   options.Get("scaleFactor", &scale_factor);
